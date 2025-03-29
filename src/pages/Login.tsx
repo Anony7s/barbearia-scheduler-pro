@@ -1,13 +1,15 @@
 
 import React, { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { Eye, EyeOff, Scissors } from 'lucide-react';
+import { Eye, EyeOff, Scissors, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
   const { signIn, signUp, loading, user } = useAuth();
@@ -32,6 +34,7 @@ const Login = () => {
     e.preventDefault();
     
     if (!email || !password) {
+      toast.error('Preencha todos os campos');
       return;
     }
     
@@ -42,26 +45,45 @@ const Login = () => {
     e.preventDefault();
     
     if (!registerEmail || !registerPassword || !registerName || !registerConfirmPassword) {
+      toast.error('Preencha todos os campos');
       return;
     }
     
     if (registerPassword !== registerConfirmPassword) {
+      toast.error('As senhas não coincidem');
+      return;
+    }
+
+    if (registerPassword.length < 6) {
+      toast.error('A senha deve ter pelo menos 6 caracteres');
       return;
     }
     
-    await signUp(registerEmail, registerPassword, registerName);
-    
-    // Limpa os campos após o cadastro
-    setRegisterEmail('');
-    setRegisterPassword('');
-    setRegisterName('');
-    setRegisterConfirmPassword('');
+    try {
+      await signUp(registerEmail, registerPassword, registerName);
+      
+      // Limpa os campos após o cadastro
+      setRegisterEmail('');
+      setRegisterPassword('');
+      setRegisterName('');
+      setRegisterConfirmPassword('');
+      
+      // Muda para a aba de login
+      document.getElementById('login-tab')?.click();
+      
+      toast.success('Conta criada com sucesso! Verifique seu email para confirmar o cadastro.');
+    } catch (error: any) {
+      toast.error('Erro ao criar conta', {
+        description: error.message
+      });
+    }
   };
   
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!resetEmail) {
+      toast.error('Preencha o campo de email');
       return;
     }
     
@@ -72,8 +94,12 @@ const Login = () => {
       
       // Limpa o campo após enviar
       setResetEmail('');
-    } catch (error) {
-      console.error('Erro ao resetar senha:', error);
+      
+      toast.success('Link de recuperação enviado para seu email');
+    } catch (error: any) {
+      toast.error('Erro ao resetar senha', {
+        description: error.message
+      });
     }
   };
   
@@ -92,7 +118,7 @@ const Login = () => {
         
         <Tabs defaultValue="login" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="login">Login</TabsTrigger>
+            <TabsTrigger id="login-tab" value="login">Login</TabsTrigger>
             <TabsTrigger value="register">Cadastro</TabsTrigger>
             <TabsTrigger value="reset">Recuperar Senha</TabsTrigger>
           </TabsList>
@@ -147,7 +173,7 @@ const Login = () => {
                   </div>
                   <Button
                     type="submit"
-                    className="w-full bg-barber-secondary hover:bg-barber-accent"
+                    className="w-full bg-barber-secondary hover:bg-barber-accent flex items-center justify-center gap-2"
                     disabled={loading}
                   >
                     {loading ? "Entrando..." : "Entrar"}
@@ -160,7 +186,10 @@ const Login = () => {
           <TabsContent value="register">
             <Card>
               <CardHeader>
-                <CardTitle>Cadastro</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5" />
+                  Cadastro
+                </CardTitle>
                 <CardDescription>
                   Crie uma nova conta para acessar o sistema
                 </CardDescription>
@@ -168,7 +197,7 @@ const Login = () => {
               <CardContent>
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="register-name">Nome</Label>
+                    <Label htmlFor="register-name">Nome Completo</Label>
                     <Input
                       id="register-name"
                       placeholder="Seu nome completo"
@@ -198,6 +227,7 @@ const Login = () => {
                         value={registerPassword}
                         onChange={(e) => setRegisterPassword(e.target.value)}
                         required
+                        minLength={6}
                       />
                       <button
                         type="button"
@@ -211,6 +241,7 @@ const Login = () => {
                         )}
                       </button>
                     </div>
+                    <p className="text-xs text-gray-500 mt-1">A senha deve ter pelo menos 6 caracteres</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-confirm-password">Confirmar Senha</Label>
@@ -220,13 +251,15 @@ const Login = () => {
                       value={registerConfirmPassword}
                       onChange={(e) => setRegisterConfirmPassword(e.target.value)}
                       required
+                      minLength={6}
                     />
                   </div>
                   <Button
                     type="submit"
-                    className="w-full bg-barber-secondary hover:bg-barber-accent"
+                    className="w-full bg-barber-secondary hover:bg-barber-accent flex items-center justify-center gap-2"
                     disabled={loading}
                   >
+                    <UserPlus className="h-5 w-5" />
                     {loading ? "Cadastrando..." : "Cadastrar"}
                   </Button>
                 </form>
