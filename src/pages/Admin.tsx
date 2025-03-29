@@ -51,20 +51,20 @@ const Admin = () => {
                 <SidebarGroupLabel>Gerenciamento</SidebarGroupLabel>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton active={activeTab === "appointments"} onClick={() => setActiveTab("appointments")}>
+                    <SidebarMenuButton isActive={activeTab === "appointments"} onClick={() => setActiveTab("appointments")}>
                       <CalendarDays className="h-5 w-5 mr-2" />
                       <span>Agendamentos</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton active={activeTab === "schedule"} onClick={() => setActiveTab("schedule")}>
+                    <SidebarMenuButton isActive={activeTab === "schedule"} onClick={() => setActiveTab("schedule")}>
                       <Clock className="h-5 w-5 mr-2" />
                       <span>Horários</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   {isAdmin && (
                     <SidebarMenuItem>
-                      <SidebarMenuButton active={activeTab === "users"} onClick={() => setActiveTab("users")}>
+                      <SidebarMenuButton isActive={activeTab === "users"} onClick={() => setActiveTab("users")}>
                         <Users className="h-5 w-5 mr-2" />
                         <span>Usuários</span>
                       </SidebarMenuButton>
@@ -72,7 +72,7 @@ const Admin = () => {
                   )}
                   {isAdmin && (
                     <SidebarMenuItem>
-                      <SidebarMenuButton active={activeTab === "reports"} onClick={() => setActiveTab("reports")}>
+                      <SidebarMenuButton isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")}>
                         <BarChart3 className="h-5 w-5 mr-2" />
                         <span>Relatórios</span>
                       </SidebarMenuButton>
