@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Edit2, Trash2, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,7 +34,6 @@ import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
-// Interface para os perfis de usuários
 interface UserProfile {
   id: string;
   name: string;
@@ -46,7 +44,7 @@ interface UserProfile {
 }
 
 const UserManagement = () => {
-  const { isAdmin } = useAuth();
+  const { user, profile } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [showAddUserDialog, setShowAddUserDialog] = useState(false);
   const [showEditUserDialog, setShowEditUserDialog] = useState(false);
@@ -74,10 +72,13 @@ const UserManagement = () => {
   
   const [showPassword, setShowPassword] = useState(false);
   
-  // Carregar usuários ao iniciar o componente
+  const isAdmin = profile?.role === 'admin';
+  
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (isAdmin) {
+      fetchUsers();
+    }
+  }, [isAdmin]);
   
   const fetchUsers = async () => {
     try {
@@ -110,7 +111,6 @@ const UserManagement = () => {
   };
   
   const handleAddUser = async () => {
-    // Validar formulário
     if (!newUser.name || !newUser.email || !newUser.password || !newUser.role) {
       toast.error('Por favor, preencha todos os campos obrigatórios.');
       return;
@@ -124,7 +124,6 @@ const UserManagement = () => {
     try {
       setLoading(true);
       
-      // 1. Criar o usuário no auth do Supabase
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: newUser.email,
         password: newUser.password,
@@ -137,8 +136,6 @@ const UserManagement = () => {
       
       if (authError) throw authError;
       
-      // 2. A função de gatilho deve criar automaticamente o perfil
-      // Mas vamos confirmar se o perfil foi criado
       await new Promise(resolve => setTimeout(resolve, 500));
       
       await fetchUsers();
@@ -158,7 +155,6 @@ const UserManagement = () => {
   const handleEditUser = async () => {
     if (!editingUser) return;
     
-    // Validar formulário
     if (!editingUser.name || !editingUser.email || !editingUser.role) {
       toast.error('Por favor, preencha todos os campos obrigatórios.');
       return;
@@ -172,7 +168,6 @@ const UserManagement = () => {
     try {
       setLoading(true);
       
-      // 1. Atualizar o perfil
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -184,7 +179,6 @@ const UserManagement = () => {
       
       if (profileError) throw profileError;
       
-      // 2. Se houver senha, atualizar a senha
       if (editingUser.password) {
         const { error: passwordError } = await supabase.auth.admin.updateUserById(
           editingUser.id,
@@ -214,8 +208,6 @@ const UserManagement = () => {
     try {
       setLoading(true);
       
-      // Deletar o usuário no Supabase Auth
-      // A exclusão em cascata removerá automaticamente o perfil
       const { error } = await supabase.auth.admin.deleteUser(deleteUserId);
       
       if (error) throw error;
@@ -272,7 +264,6 @@ const UserManagement = () => {
     }
   };
   
-  // Verificar se o usuário é administrador
   if (!isAdmin) {
     return (
       <Card>
@@ -454,7 +445,6 @@ const UserManagement = () => {
         </CardContent>
       </Card>
       
-      {/* Edit User Dialog */}
       <Dialog open={showEditUserDialog} onOpenChange={setShowEditUserDialog}>
         <DialogContent>
           <DialogHeader>
@@ -565,7 +555,6 @@ const UserManagement = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Delete User Dialog */}
       <AlertDialog open={deleteUserId !== null} onOpenChange={() => setDeleteUserId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

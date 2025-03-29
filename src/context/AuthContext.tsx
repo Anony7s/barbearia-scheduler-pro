@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       toast.success('Login realizado com sucesso');
-      navigate('/admin');
+      // Redirecionamento será feito após verificar o perfil do usuário
     } catch (error: any) {
       toast.error('Erro ao fazer login', {
         description: error.message

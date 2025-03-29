@@ -7,22 +7,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter } from '@/components/ui/sidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 import AppointmentList from '@/components/admin/AppointmentList';
 import ScheduleEditor from '@/components/admin/ScheduleEditor';
 import UserManagement from '@/components/admin/UserManagement';
 import Reports from '@/components/admin/Reports';
 
 const Admin = () => {
-  const { signOut, user, profile, loading } = useAuth();
+  const { signOut, user, profile, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("appointments");
   
-  // Redirecionar se não estiver autenticado
+  // Redirecionar se não estiver autenticado ou não for admin
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/login');
+    if (!loading) {
+      if (!user) {
+        navigate('/login');
+      } else if (profile && profile.role !== 'admin') {
+        toast.error('Acesso restrito', {
+          description: 'Você não tem permissão para acessar esta área.'
+        });
+        navigate('/');
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, profile, loading, navigate]);
   
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
@@ -32,7 +40,10 @@ const Admin = () => {
     return null;
   }
   
-  const isAdmin = profile.role === 'admin';
+  // Verificação adicional de segurança
+  if (profile.role !== 'admin') {
+    return null;
+  }
   
   return (
     <SidebarProvider>
@@ -62,22 +73,18 @@ const Admin = () => {
                       <span>Horários</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  {isAdmin && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton isActive={activeTab === "users"} onClick={() => setActiveTab("users")}>
-                        <Users className="h-5 w-5 mr-2" />
-                        <span>Usuários</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )}
-                  {isAdmin && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")}>
-                        <BarChart3 className="h-5 w-5 mr-2" />
-                        <span>Relatórios</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={activeTab === "users"} onClick={() => setActiveTab("users")}>
+                      <Users className="h-5 w-5 mr-2" />
+                      <span>Usuários</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={activeTab === "reports"} onClick={() => setActiveTab("reports")}>
+                      <BarChart3 className="h-5 w-5 mr-2" />
+                      <span>Relatórios</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroup>
               
