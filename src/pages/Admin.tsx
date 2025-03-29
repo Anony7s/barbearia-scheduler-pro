@@ -1,30 +1,38 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays, CreditCard, Users, Settings, LogOut, BarChart3, Clock, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter } from '@/components/ui/sidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import AppointmentList from '@/components/admin/AppointmentList';
 import ScheduleEditor from '@/components/admin/ScheduleEditor';
 import UserManagement from '@/components/admin/UserManagement';
 import Reports from '@/components/admin/Reports';
 
 const Admin = () => {
-  const { toast } = useToast();
+  const { signOut, user, profile, loading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("appointments");
   
-  const handleLogout = () => {
-    // This would be a call to your Supabase auth logout
-    toast({
-      title: "Logout realizado",
-      description: "Você foi desconectado com sucesso.",
-    });
-    navigate('/login');
-  };
+  // Redirecionar se não estiver autenticado
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
+  
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
+  }
+  
+  if (!user || !profile) {
+    return null;
+  }
+  
+  const isAdmin = profile.role === 'admin';
   
   return (
     <SidebarProvider>
@@ -54,18 +62,22 @@ const Admin = () => {
                       <span>Horários</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton active={activeTab === "users"} onClick={() => setActiveTab("users")}>
-                      <Users className="h-5 w-5 mr-2" />
-                      <span>Usuários</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton active={activeTab === "reports"} onClick={() => setActiveTab("reports")}>
-                      <BarChart3 className="h-5 w-5 mr-2" />
-                      <span>Relatórios</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  {isAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton active={activeTab === "users"} onClick={() => setActiveTab("users")}>
+                        <Users className="h-5 w-5 mr-2" />
+                        <span>Usuários</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                  {isAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton active={activeTab === "reports"} onClick={() => setActiveTab("reports")}>
+                        <BarChart3 className="h-5 w-5 mr-2" />
+                        <span>Relatórios</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </SidebarGroup>
               
@@ -83,10 +95,14 @@ const Admin = () => {
             </SidebarContent>
             
             <SidebarFooter>
+              <div className="px-3 py-2 mb-2">
+                <p className="text-sm font-medium">{profile.name}</p>
+                <p className="text-xs text-muted-foreground">{profile.email}</p>
+              </div>
               <Button 
                 variant="ghost" 
                 className="w-full justify-start text-red-500 hover:text-red-700 hover:bg-red-50"
-                onClick={handleLogout}
+                onClick={signOut}
               >
                 <LogOut className="h-5 w-5 mr-2" />
                 <span>Sair</span>

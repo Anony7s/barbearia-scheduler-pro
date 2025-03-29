@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Edit2, Trash2, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,58 +31,72 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
-// Mock user data
-const initialUsers = [
-  {
-    id: 1,
-    name: 'Admin Principal',
-    email: 'admin@barbershoppro.com',
-    role: 'admin',
-    active: true
-  },
-  {
-    id: 2,
-    name: 'João Barbeiro',
-    email: 'joao@barbershoppro.com',
-    role: 'barber',
-    active: true
-  },
-  {
-    id: 3,
-    name: 'Pedro Barbeiro',
-    email: 'pedro@barbershoppro.com',
-    role: 'barber',
-    active: true
-  },
-  {
-    id: 4,
-    name: 'Carlos Recepcionista',
-    email: 'carlos@barbershoppro.com',
-    role: 'receptionist',
-    active: false
-  }
-];
+// Interface para os perfis de usuários
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  active: boolean;
+  created_at?: string;
+}
 
 const UserManagement = () => {
-  const { toast } = useToast();
-  const [users, setUsers] = useState(initialUsers);
+  const { isAdmin } = useAuth();
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [showAddUserDialog, setShowAddUserDialog] = useState(false);
   const [showEditUserDialog, setShowEditUserDialog] = useState(false);
-  const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    role: '',
+    role: 'barber',
     active: true
   });
   
-  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    active: boolean;
+    password?: string;
+    confirmPassword?: string;
+  } | null>(null);
+  
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Carregar usuários ao iniciar o componente
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+  
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+      toast.error('Não foi possível carregar os usuários.');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const resetNewUser = () => {
     setNewUser({
@@ -90,102 +104,142 @@ const UserManagement = () => {
       email: '',
       password: '',
       confirmPassword: '',
-      role: '',
+      role: 'barber',
       active: true
     });
   };
   
-  const handleAddUser = () => {
-    // Validate form
+  const handleAddUser = async () => {
+    // Validar formulário
     if (!newUser.name || !newUser.email || !newUser.password || !newUser.role) {
-      toast({
-        title: "Erro",
-        description: "Por favor, preencha todos os campos obrigatórios.",
-        variant: "destructive",
-      });
+      toast.error('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
     
     if (newUser.password !== newUser.confirmPassword) {
-      toast({
-        title: "Erro",
-        description: "As senhas não correspondem.",
-        variant: "destructive",
-      });
+      toast.error('As senhas não correspondem.');
       return;
     }
     
-    // Add new user
-    const id = Math.max(...users.map(user => user.id)) + 1;
-    setUsers([...users, { id, ...newUser }]);
-    
-    toast({
-      title: "Usuário adicionado",
-      description: `${newUser.name} foi adicionado com sucesso.`,
-    });
-    
-    setShowAddUserDialog(false);
-    resetNewUser();
+    try {
+      setLoading(true);
+      
+      // 1. Criar o usuário no auth do Supabase
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: newUser.email,
+        password: newUser.password,
+        email_confirm: true,
+        user_metadata: {
+          name: newUser.name,
+          role: newUser.role
+        }
+      });
+      
+      if (authError) throw authError;
+      
+      // 2. A função de gatilho deve criar automaticamente o perfil
+      // Mas vamos confirmar se o perfil foi criado
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await fetchUsers();
+      
+      toast.success(`${newUser.name} foi adicionado com sucesso.`);
+      setShowAddUserDialog(false);
+      resetNewUser();
+      
+    } catch (error: any) {
+      console.error('Erro ao adicionar usuário:', error);
+      toast.error(error.message || 'Não foi possível adicionar o usuário.');
+    } finally {
+      setLoading(false);
+    }
   };
   
-  const handleEditUser = () => {
+  const handleEditUser = async () => {
     if (!editingUser) return;
     
-    // Validate form
+    // Validar formulário
     if (!editingUser.name || !editingUser.email || !editingUser.role) {
-      toast({
-        title: "Erro",
-        description: "Por favor, preencha todos os campos obrigatórios.",
-        variant: "destructive",
-      });
+      toast.error('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
     
     if (editingUser.password && editingUser.password !== editingUser.confirmPassword) {
-      toast({
-        title: "Erro",
-        description: "As senhas não correspondem.",
-        variant: "destructive",
-      });
+      toast.error('As senhas não correspondem.');
       return;
     }
     
-    // Update user
-    setUsers(users.map(user => 
-      user.id === editingUser.id 
-        ? { ...user, name: editingUser.name, email: editingUser.email, role: editingUser.role, active: editingUser.active }
-        : user
-    ));
-    
-    toast({
-      title: "Usuário atualizado",
-      description: `${editingUser.name} foi atualizado com sucesso.`,
-    });
-    
-    setShowEditUserDialog(false);
-    setEditingUser(null);
+    try {
+      setLoading(true);
+      
+      // 1. Atualizar o perfil
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          name: editingUser.name,
+          role: editingUser.role,
+          active: editingUser.active
+        })
+        .eq('id', editingUser.id);
+      
+      if (profileError) throw profileError;
+      
+      // 2. Se houver senha, atualizar a senha
+      if (editingUser.password) {
+        const { error: passwordError } = await supabase.auth.admin.updateUserById(
+          editingUser.id,
+          { password: editingUser.password }
+        );
+        
+        if (passwordError) throw passwordError;
+      }
+      
+      await fetchUsers();
+      
+      toast.success(`${editingUser.name} foi atualizado com sucesso.`);
+      setShowEditUserDialog(false);
+      setEditingUser(null);
+      
+    } catch (error: any) {
+      console.error('Erro ao atualizar usuário:', error);
+      toast.error(error.message || 'Não foi possível atualizar o usuário.');
+    } finally {
+      setLoading(false);
+    }
   };
   
-  const handleDeleteUser = () => {
-    if (deleteUserId === null) return;
+  const handleDeleteUser = async () => {
+    if (!deleteUserId) return;
     
-    const userToDelete = users.find(user => user.id === deleteUserId);
-    
-    if (!userToDelete) return;
-    
-    setUsers(users.filter(user => user.id !== deleteUserId));
-    
-    toast({
-      title: "Usuário removido",
-      description: `${userToDelete.name} foi removido com sucesso.`,
-    });
-    
-    setDeleteUserId(null);
+    try {
+      setLoading(true);
+      
+      // Deletar o usuário no Supabase Auth
+      // A exclusão em cascata removerá automaticamente o perfil
+      const { error } = await supabase.auth.admin.deleteUser(deleteUserId);
+      
+      if (error) throw error;
+      
+      setUsers(users.filter(user => user.id !== deleteUserId));
+      
+      toast.success('Usuário removido com sucesso.');
+      setDeleteUserId(null);
+      
+    } catch (error: any) {
+      console.error('Erro ao excluir usuário:', error);
+      toast.error(error.message || 'Não foi possível excluir o usuário.');
+    } finally {
+      setLoading(false);
+    }
   };
   
-  const startEditUser = (user: any) => {
+  const startEditUser = (user: UserProfile) => {
     setEditingUser({
-      ...user,
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      active: user.active,
       password: '',
       confirmPassword: ''
     });
@@ -217,6 +271,20 @@ const UserManagement = () => {
         return role;
     }
   };
+  
+  // Verificar se o usuário é administrador
+  if (!isAdmin) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Acesso Restrito</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>Você não tem permissão para acessar esta área.</p>
+        </CardContent>
+      </Card>
+    );
+  }
   
   return (
     <div>
@@ -291,7 +359,10 @@ const UserManagement = () => {
               
               <div>
                 <Label htmlFor="role">Função</Label>
-                <Select onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
+                <Select 
+                  defaultValue={newUser.role}
+                  onValueChange={(value) => setNewUser({ ...newUser, role: value })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma função" />
                   </SelectTrigger>
@@ -308,8 +379,12 @@ const UserManagement = () => {
               <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleAddUser} className="bg-barber-secondary hover:bg-barber-accent">
-                Adicionar
+              <Button 
+                onClick={handleAddUser} 
+                className="bg-barber-secondary hover:bg-barber-accent"
+                disabled={loading}
+              >
+                {loading ? 'Adicionando...' : 'Adicionar'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -321,53 +396,61 @@ const UserManagement = () => {
           <CardTitle>Usuários do Sistema</CardTitle>
         </CardHeader>
         <CardContent>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-3 px-4">Nome</th>
-                <th className="text-left py-3 px-4">Email</th>
-                <th className="text-left py-3 px-4">Função</th>
-                <th className="text-left py-3 px-4">Status</th>
-                <th className="text-right py-3 px-4">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b">
-                  <td className="py-3 px-4">{user.name}</td>
-                  <td className="py-3 px-4">{user.email}</td>
-                  <td className="py-3 px-4">
-                    <span className={`inline-block py-1 px-2 rounded text-xs font-medium ${getRoleBadgeClass(user.role)}`}>
-                      {getRoleLabel(user.role)}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`inline-block py-1 px-2 rounded text-xs font-medium ${user.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {user.active ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="text-gray-500 hover:text-barber-secondary"
-                      onClick={() => startEditUser(user)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="text-gray-500 hover:text-red-500"
-                      onClick={() => setDeleteUserId(user.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {loading && users.length === 0 ? (
+            <div className="py-8 text-center">Carregando usuários...</div>
+          ) : users.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4">Nome</th>
+                    <th className="text-left py-3 px-4">Email</th>
+                    <th className="text-left py-3 px-4">Função</th>
+                    <th className="text-left py-3 px-4">Status</th>
+                    <th className="text-right py-3 px-4">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.id} className="border-b">
+                      <td className="py-3 px-4">{user.name}</td>
+                      <td className="py-3 px-4">{user.email}</td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-block py-1 px-2 rounded text-xs font-medium ${getRoleBadgeClass(user.role)}`}>
+                          {getRoleLabel(user.role)}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-block py-1 px-2 rounded text-xs font-medium ${user.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {user.active ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-gray-500 hover:text-barber-secondary"
+                          onClick={() => startEditUser(user)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-gray-500 hover:text-red-500"
+                          onClick={() => setDeleteUserId(user.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-8 text-center">Nenhum usuário encontrado.</div>
+          )}
         </CardContent>
       </Card>
       
@@ -398,7 +481,7 @@ const UserManagement = () => {
                   id="edit-email"
                   type="email"
                   value={editingUser.email}
-                  onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                  readOnly
                 />
               </div>
               
@@ -471,8 +554,12 @@ const UserManagement = () => {
             <Button variant="outline" onClick={() => setShowEditUserDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleEditUser} className="bg-barber-secondary hover:bg-barber-accent">
-              Salvar Alterações
+            <Button 
+              onClick={handleEditUser} 
+              className="bg-barber-secondary hover:bg-barber-accent"
+              disabled={loading}
+            >
+              {loading ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -489,8 +576,12 @@ const UserManagement = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteUser} className="bg-red-500 hover:bg-red-600">
-              Excluir
+            <AlertDialogAction 
+              onClick={handleDeleteUser} 
+              className="bg-red-500 hover:bg-red-600"
+              disabled={loading}
+            >
+              {loading ? 'Excluindo...' : 'Excluir'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

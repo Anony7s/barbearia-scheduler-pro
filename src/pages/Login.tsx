@@ -1,92 +1,79 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Eye, EyeOff, Scissors } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 const Login = () => {
-  const { toast } = useToast();
+  const { signIn, signUp, loading, user } = useAuth();
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Estado para o cadastro
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerName, setRegisterName] = useState('');
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
+  
+  // Se o usuário já estiver logado, redireciona para a área administrativa
+  if (user) {
+    return <Navigate to="/admin" />;
+  }
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
-      toast({
-        title: "Erro de login",
-        description: "Por favor, preencha todos os campos.",
-        variant: "destructive",
-      });
       return;
     }
     
-    setIsSubmitting(true);
+    await signIn(email, password);
+  };
+  
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    try {
-      // This would be a call to your Supabase authentication
-      // Simulating API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Você está sendo redirecionado para o painel.",
-      });
-      
-      // Redirect to dashboard would happen here
-      window.location.href = '/admin';
-    } catch (error) {
-      toast({
-        title: "Erro de autenticação",
-        description: "Email ou senha incorretos. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
+    if (!registerEmail || !registerPassword || !registerName || !registerConfirmPassword) {
+      return;
     }
+    
+    if (registerPassword !== registerConfirmPassword) {
+      return;
+    }
+    
+    await signUp(registerEmail, registerPassword, registerName);
+    
+    // Limpa os campos após o cadastro
+    setRegisterEmail('');
+    setRegisterPassword('');
+    setRegisterName('');
+    setRegisterConfirmPassword('');
   };
   
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!resetEmail) {
-      toast({
-        title: "Erro",
-        description: "Por favor, insira seu email para recuperar a senha.",
-        variant: "destructive",
-      });
       return;
     }
     
-    setIsSubmitting(true);
-    
     try {
-      // This would be a call to your Supabase password reset
-      // Simulating API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail);
       
-      toast({
-        title: "Email enviado",
-        description: "Verifique sua caixa de entrada para redefinir sua senha.",
-      });
+      if (error) throw error;
       
+      // Limpa o campo após enviar
       setResetEmail('');
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível enviar o email de recuperação. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
+      console.error('Erro ao resetar senha:', error);
     }
   };
   
@@ -104,8 +91,9 @@ const Login = () => {
         </div>
         
         <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="login">Login</TabsTrigger>
+            <TabsTrigger value="register">Cadastro</TabsTrigger>
             <TabsTrigger value="reset">Recuperar Senha</TabsTrigger>
           </TabsList>
           
@@ -160,9 +148,86 @@ const Login = () => {
                   <Button
                     type="submit"
                     className="w-full bg-barber-secondary hover:bg-barber-accent"
-                    disabled={isSubmitting}
+                    disabled={loading}
                   >
-                    {isSubmitting ? "Entrando..." : "Entrar"}
+                    {loading ? "Entrando..." : "Entrar"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="register">
+            <Card>
+              <CardHeader>
+                <CardTitle>Cadastro</CardTitle>
+                <CardDescription>
+                  Crie uma nova conta para acessar o sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="register-name">Nome</Label>
+                    <Input
+                      id="register-name"
+                      placeholder="Seu nome completo"
+                      type="text"
+                      value={registerName}
+                      onChange={(e) => setRegisterName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-email">Email</Label>
+                    <Input
+                      id="register-email"
+                      placeholder="nome@barbershoppro.com"
+                      type="email"
+                      value={registerEmail}
+                      onChange={(e) => setRegisterEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-password">Senha</Label>
+                    <div className="relative">
+                      <Input
+                        id="register-password"
+                        type={showPassword ? "text" : "password"}
+                        value={registerPassword}
+                        onChange={(e) => setRegisterPassword(e.target.value)}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-5 w-5 text-gray-400" />
+                        ) : (
+                          <Eye className="h-5 w-5 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-confirm-password">Confirmar Senha</Label>
+                    <Input
+                      id="register-confirm-password"
+                      type="password"
+                      value={registerConfirmPassword}
+                      onChange={(e) => setRegisterConfirmPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full bg-barber-secondary hover:bg-barber-accent"
+                    disabled={loading}
+                  >
+                    {loading ? "Cadastrando..." : "Cadastrar"}
                   </Button>
                 </form>
               </CardContent>
@@ -193,9 +258,9 @@ const Login = () => {
                   <Button
                     type="submit"
                     className="w-full bg-barber-secondary hover:bg-barber-accent"
-                    disabled={isSubmitting}
+                    disabled={loading}
                   >
-                    {isSubmitting ? "Enviando..." : "Enviar Link de Recuperação"}
+                    {loading ? "Enviando..." : "Enviar Link de Recuperação"}
                   </Button>
                 </form>
               </CardContent>
