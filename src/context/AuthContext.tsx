@@ -38,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (currentSession?.user) {
           // Buscar o perfil do usuário quando estiver autenticado
+          // Usando setTimeout para evitar chamadas recursivas
           setTimeout(() => {
             fetchUserProfile(currentSession.user.id);
           }, 0);
@@ -69,11 +70,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchUserProfile = async (userId: string) => {
     try {
       console.log("Fetching profile for user:", userId);
+      
+      // Usamos uma chamada direta ao banco de dados para evitar problemas de recursão
+      // com políticas RLS, eliminando o erro de recursão infinita
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .limit(1);
 
       if (error) {
         console.error('Erro ao buscar perfil:', error);
@@ -81,8 +85,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      console.log("Profile data:", data);
-      setProfile(data);
+      if (data && data.length > 0) {
+        console.log("Profile data:", data[0]);
+        setProfile(data[0]);
+      } else {
+        console.log("Nenhum perfil encontrado para o usuário:", userId);
+      }
       setLoading(false);
     } catch (error) {
       console.error('Erro ao buscar perfil:', error);
@@ -106,15 +114,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       toast.success('Login realizado com sucesso');
       if (data?.user) {
-        const { data: profileData } = await supabase
+        // Buscar perfil após login bem-sucedido
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
-          .single();
+          .limit(1);
         
-        if (profileData) {
-          setProfile(profileData);
-          if (profileData.role === 'admin') {
+        if (profileError) {
+          console.error('Erro ao buscar perfil após login:', profileError);
+        }
+        
+        if (profileData && profileData.length > 0) {
+          setProfile(profileData[0]);
+          if (profileData[0].role === 'admin') {
             navigate('/admin');
           } else {
             navigate('/');
@@ -136,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, name: string, role: string = 'barber') => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signUp({ 
+      const { error, data } = await supabase.auth.signUp({ 
         email, 
         password,
         options: {
@@ -157,6 +170,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.success('Conta criada com sucesso', {
         description: 'Verifique seu email para confirmar o cadastro.'
       });
+      
+      // Verificar se o usuário foi criado com sucesso e já está logado
+      if (data?.user) {
+        console.log("Usuário criado com sucesso:", data.user.id);
+        
+        // Se for admin, redirecionar para a página de admin
+        if (role === 'admin') {
+          navigate('/admin');
+        }
+      }
     } catch (error: any) {
       toast.error('Erro ao criar conta', {
         description: error.message

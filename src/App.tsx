@@ -28,8 +28,15 @@ const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.Re
     return <Navigate to="/login" />;
   }
   
+  // Adiciona logs para debug
+  console.log("ProtectedRoute - User:", user.id);
+  console.log("ProtectedRoute - Profile:", profile);
+  console.log("ProtectedRoute - Is Admin:", isAdmin);
+  console.log("ProtectedRoute - Require Admin:", requireAdmin);
+  
   // Se requer admin e o usuário não é admin, redirecionar para a página inicial
   if (requireAdmin && !isAdmin) {
+    console.log("Redirecionando para / porque não é admin");
     return <Navigate to="/" />;
   }
   

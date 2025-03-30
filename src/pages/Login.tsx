@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Scissors, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, Scissors, UserPlus, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
@@ -20,13 +19,17 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   
-  // Estado para o cadastro
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerName, setRegisterName] = useState('');
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
   
-  // Efeito para verificar login e redirecionar
+  const defaultAdminEmail = 'admin@barbeariapro.com';
+  const defaultAdminPassword = 'admin123';
+  const defaultAdminName = 'Administrador';
+  
+  const [creatingAdmin, setCreatingAdmin] = useState(false);
+  
   useEffect(() => {
     console.log("Login page - user:", user?.id);
     console.log("Login page - profile:", profile);
@@ -74,13 +77,11 @@ const Login = () => {
     try {
       await signUp(registerEmail, registerPassword, registerName);
       
-      // Limpa os campos após o cadastro
       setRegisterEmail('');
       setRegisterPassword('');
       setRegisterName('');
       setRegisterConfirmPassword('');
       
-      // Muda para a aba de login
       document.getElementById('login-tab')?.click();
       
       toast.success('Conta criada com sucesso! Verifique seu email para confirmar o cadastro.');
@@ -104,12 +105,62 @@ const Login = () => {
       
       if (error) throw error;
       
-      // Limpa o campo após enviar
       setResetEmail('');
       
       toast.success('Link de recuperação enviado para seu email');
     } catch (error: any) {
       toast.error('Erro ao resetar senha', {
+        description: error.message
+      });
+    }
+  };
+  
+  const createAdminAccount = async () => {
+    try {
+      setCreatingAdmin(true);
+      
+      await signUp(defaultAdminEmail, defaultAdminPassword, defaultAdminName, 'admin');
+      
+      setEmail(defaultAdminEmail);
+      setPassword(defaultAdminPassword);
+      
+      toast.success('Conta de administrador criada com sucesso!', {
+        description: 'Use o email e senha que aparecem nos campos de login.'
+      });
+      
+      document.getElementById('login-tab')?.click();
+    } catch (error: any) {
+      if (error.message?.includes('already registered')) {
+        toast.info('Conta de administrador já existe', {
+          description: 'Tente fazer login com as credenciais admin ou reset a senha.'
+        });
+        
+        setEmail(defaultAdminEmail);
+        setPassword(defaultAdminPassword);
+        
+        document.getElementById('login-tab')?.click();
+      } else {
+        toast.error('Erro ao criar conta de administrador', {
+          description: error.message
+        });
+      }
+    } finally {
+      setCreatingAdmin(false);
+    }
+  };
+  
+  const updateUserToAdmin = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: 'admin' })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      toast.success('Usuário promovido a administrador com sucesso!');
+    } catch (error: any) {
+      toast.error('Erro ao promover usuário', {
         description: error.message
       });
     }
@@ -127,6 +178,22 @@ const Login = () => {
           <h1 className="text-3xl font-serif font-bold">Barber Shop Pro</h1>
           <p className="mt-2 text-gray-600">Acesso para profissionais da barbearia</p>
         </div>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <Button
+              onClick={createAdminAccount}
+              className="w-full bg-purple-600 hover:bg-purple-700 flex items-center justify-center gap-2"
+              disabled={creatingAdmin || loading}
+            >
+              <ShieldCheck className="h-5 w-5" />
+              {creatingAdmin ? "Criando conta de administrador..." : "Criar conta de administrador"}
+            </Button>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Isso criará uma conta com email: admin@barbeariapro.com e senha: admin123
+            </p>
+          </CardContent>
+        </Card>
         
         <Tabs defaultValue="login" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
