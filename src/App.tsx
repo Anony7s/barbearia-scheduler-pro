@@ -23,16 +23,16 @@ const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.Re
     return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
   }
   
+  // Adiciona logs para debug
+  console.log("ProtectedRoute - User:", user?.id);
+  console.log("ProtectedRoute - Profile:", profile);
+  console.log("ProtectedRoute - Is Admin:", isAdmin);
+  console.log("ProtectedRoute - Require Admin:", requireAdmin);
+  
   // Se não estiver autenticado, redireciona para o login
   if (!user) {
     return <Navigate to="/login" />;
   }
-  
-  // Adiciona logs para debug
-  console.log("ProtectedRoute - User:", user.id);
-  console.log("ProtectedRoute - Profile:", profile);
-  console.log("ProtectedRoute - Is Admin:", isAdmin);
-  console.log("ProtectedRoute - Require Admin:", requireAdmin);
   
   // Se requer admin e o usuário não é admin, redirecionar para a página inicial
   if (requireAdmin && !isAdmin) {

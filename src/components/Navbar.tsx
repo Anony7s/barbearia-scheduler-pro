@@ -1,198 +1,186 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Menu, X, Scissors, Calendar, UserCircle, LogOut, Shield } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Menu, X, Scissors, Calendar, LogIn, LogOut, User, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/context/AuthContext';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { useWindowSize } from '@/hooks/use-mobile';
 
 const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isMobile } = useWindowSize();
   const { user, profile, signOut, isAdmin } = useAuth();
-  
-  const navItems = [
-    { text: 'Início', path: '/' },
-    { text: 'Serviços', path: '/#services' },
-    { text: 'Localização', path: '/#location' },
-    { text: 'Contato', path: '/#contact' },
-  ];
-  
-  const getInitials = () => {
-    if (profile?.name) {
-      return profile.name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
-    }
-    return user?.email?.substring(0, 2).toUpperCase() || "U";
+  const navigate = useNavigate();
+
+  console.log("Navbar - User:", user?.id);
+  console.log("Navbar - Profile:", profile);
+  console.log("Navbar - Is Admin:", isAdmin);
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
   };
-  
+
+  const handleSignOut = async () => {
+    await signOut();
+    toggleMenu();
+  };
+
+  const handleLoginClick = () => {
+    navigate('/login');
+    toggleMenu();
+  };
+
+  const handleAdminClick = () => {
+    navigate('/admin');
+    toggleMenu();
+  };
+
   return (
-    <header className="bg-barber-primary text-white py-4 sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center">
-            <div className="bg-white p-1 rounded-full mr-3">
-              <Scissors className="h-6 w-6 text-barber-primary" />
-            </div>
-            <span className="font-serif text-xl font-bold">Barber Shop Pro</span>
-          </Link>
-          
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            {navItems.map((item, index) => (
-              <Link 
-                key={index} 
-                to={item.path}
-                className="text-white/80 hover:text-white transition-colors"
-              >
-                {item.text}
-              </Link>
-            ))}
-          </nav>
-          
-          <div className="hidden md:flex items-center space-x-4">
-            <Link to="/agendar">
-              <Button className="bg-barber-secondary hover:bg-barber-accent">
-                <Calendar className="mr-2 h-4 w-4" />
-                Agendar
-              </Button>
+    <nav className="bg-white shadow-md">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex items-center">
+            <Link to="/" className="flex-shrink-0 flex items-center">
+              <div className="p-2 bg-barber-primary rounded-full mr-2">
+                <Scissors className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-lg font-serif font-bold">Barber Shop Pro</span>
             </Link>
-            
-            {/* Se o usuário estiver logado */}
-            {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-white/10">
-                    <Avatar className="h-10 w-10 border-2 border-white/20">
-                      <AvatarFallback className="bg-barber-secondary text-white">
-                        {getInitials()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {profile?.name && (
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{profile.name}</p>
-                        <p className="text-xs leading-none text-muted-foreground">
-                          {user.email}
-                        </p>
-                      </div>
-                    </DropdownMenuLabel>
-                  )}
-                  <DropdownMenuSeparator />
+          </div>
+
+          {/* Desktop Navigation */}
+          {!isMobile && (
+            <div className="flex items-center space-x-4">
+              <Link to="/" className="px-3 py-2 text-gray-700 hover:text-barber-secondary">
+                Início
+              </Link>
+              <Link to="/agendar" className="px-3 py-2 text-gray-700 hover:text-barber-secondary flex items-center">
+                <Calendar className="h-4 w-4 mr-1" />
+                Agendar
+              </Link>
+              
+              {user ? (
+                <>
                   {isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/admin" className="flex items-center cursor-pointer">
-                        <Shield className="mr-2 h-4 w-4" />
-                        <span>Painel Admin</span>
-                      </Link>
-                    </DropdownMenuItem>
+                    <Button 
+                      variant="ghost" 
+                      className="flex items-center text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                      onClick={handleAdminClick}
+                    >
+                      <ShieldCheck className="h-4 w-4 mr-1" />
+                      Admin
+                    </Button>
                   )}
-                  <DropdownMenuItem asChild>
-                    <Link to="/agendar" className="flex items-center cursor-pointer">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      <span>Meus Agendamentos</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut} className="text-red-500 hover:text-red-600 cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sair</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Link to="/login">
-                <Button variant="ghost" className="hover:bg-white/10">
-                  <UserCircle className="mr-2 h-4 w-4" />
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      {profile?.name || user.email}
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-gray-700 hover:text-barber-secondary"
+                      onClick={handleSignOut}
+                    >
+                      <LogOut className="h-4 w-4 mr-1" />
+                      Sair
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <Button 
+                  variant="ghost" 
+                  className="text-gray-700 hover:text-barber-secondary"
+                  onClick={handleLoginClick}
+                >
+                  <LogIn className="h-4 w-4 mr-1" />
                   Login
                 </Button>
-              </Link>
-            )}
-          </div>
-          
-          {/* Mobile Navigation */}
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="bg-barber-primary text-white border-barber-primary">
-              <div className="flex items-center mt-4 mb-8">
-                <div className="bg-white p-1 rounded-full mr-3">
-                  <Scissors className="h-6 w-6 text-barber-primary" />
-                </div>
-                <span className="font-serif text-xl font-bold">Barber Pro</span>
-              </div>
-              <nav className="flex flex-col space-y-6">
-                {navItems.map((item, index) => (
-                  <Link 
-                    key={index} 
-                    to={item.path}
-                    className="text-xl font-medium"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    {item.text}
-                  </Link>
-                ))}
-                <div className="pt-6 space-y-4">
-                  <Link to="/agendar" onClick={() => setIsOpen(false)}>
-                    <Button className="w-full bg-barber-secondary hover:bg-barber-accent">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      Agendar Horário
-                    </Button>
-                  </Link>
-                  
-                  {user ? (
-                    <>
-                      {isAdmin && (
-                        <Link to="/admin" onClick={() => setIsOpen(false)}>
-                          <Button variant="outline" className="w-full border-white/20 hover:bg-white/10">
-                            <Shield className="mr-2 h-4 w-4" />
-                            Painel Admin
-                          </Button>
-                        </Link>
-                      )}
-                      <Button 
-                        variant="outline" 
-                        className="w-full border-white/20 hover:bg-white/10 text-red-400"
-                        onClick={() => {
-                          signOut();
-                          setIsOpen(false);
-                        }}
-                      >
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Sair
-                      </Button>
-                    </>
-                  ) : (
-                    <Link to="/login" onClick={() => setIsOpen(false)}>
-                      <Button variant="outline" className="w-full border-white/20 hover:bg-white/10">
-                        <UserCircle className="mr-2 h-4 w-4" />
-                        Login
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              </nav>
-            </SheetContent>
-          </Sheet>
+              )}
+            </div>
+          )}
+
+          {/* Mobile menu button */}
+          {isMobile && (
+            <div className="flex items-center">
+              <button
+                onClick={toggleMenu}
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-barber-secondary focus:outline-none"
+              >
+                {isMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
-    </header>
+
+      {/* Mobile Navigation */}
+      {isMobile && isMenuOpen && (
+        <div className="md:hidden bg-white shadow-lg absolute w-full z-50">
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+            <Link
+              to="/"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-barber-secondary"
+              onClick={toggleMenu}
+            >
+              Início
+            </Link>
+            <Link
+              to="/agendar"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-barber-secondary flex items-center"
+              onClick={toggleMenu}
+            >
+              <Calendar className="h-5 w-5 mr-2" />
+              Agendar
+            </Link>
+            
+            {user ? (
+              <>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-md text-base font-medium"
+                    onClick={handleAdminClick}
+                  >
+                    <ShieldCheck className="h-5 w-5 mr-2" />
+                    Admin
+                  </Button>
+                )}
+                <div className="px-3 py-2 border-t border-gray-200 mt-2">
+                  <div className="flex items-center mb-2">
+                    <User className="h-5 w-5 mr-2 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-700">
+                      {profile?.name || user.email}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start mt-1"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="h-5 w-5 mr-2" />
+                    Sair
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full justify-start mt-2"
+                onClick={handleLoginClick}
+              >
+                <LogIn className="h-5 w-5 mr-2" />
+                Login
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </nav>
   );
 };
 

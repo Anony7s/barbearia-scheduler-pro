@@ -131,6 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, name: string, role: string = 'barber') => {
     try {
       setLoading(true);
+      // Desativar verificação de email completamente
       const { error, data } = await supabase.auth.signUp({ 
         email, 
         password,
@@ -139,7 +140,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name,
             role
           },
-          // Desativar verificação de email
           emailRedirectTo: window.location.origin,
         }
       });
@@ -151,11 +151,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      toast.success('Conta criada com sucesso!');
-      
+      // Se o cadastro for bem-sucedido, fazer login automático
       if (data?.user) {
         console.log("Usuário criado com sucesso:", data.user.id);
+        // Login automático após cadastro
+        await signIn(email, password);
       }
+      
+      toast.success('Conta criada com sucesso!');
     } catch (error: any) {
       toast.error('Erro ao criar conta', {
         description: error.message
