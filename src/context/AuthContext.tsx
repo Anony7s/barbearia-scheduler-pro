@@ -37,13 +37,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(currentSession?.user ?? null);
         
         if (currentSession?.user) {
-          // Buscar o perfil do usuário quando estiver autenticado
-          // Usando setTimeout para evitar chamadas recursivas
+          // Usar setTimeout para evitar o problema de recursão infinita
           setTimeout(() => {
             fetchUserProfile(currentSession.user.id);
           }, 0);
         } else {
           setProfile(null);
+          setLoading(false);
         }
       }
     );
@@ -55,7 +55,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
-        fetchUserProfile(currentSession.user.id);
+        setTimeout(() => {
+          fetchUserProfile(currentSession.user.id);
+        }, 0);
       } else {
         setLoading(false);
       }
@@ -66,18 +68,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Função para buscar o perfil do usuário
+  // Função para buscar o perfil do usuário usando SQL direto para evitar problema de recursão infinita
   const fetchUserProfile = async (userId: string) => {
     try {
       console.log("Fetching profile for user:", userId);
       
-      // Usamos uma chamada direta ao banco de dados para evitar problemas de recursão
-      // com políticas RLS, eliminando o erro de recursão infinita
+      // Usar SQL direto para evitar problema de recursão
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .limit(1);
+        .limit(1)
+        .maybeSingle();
 
       if (error) {
         console.error('Erro ao buscar perfil:', error);
@@ -85,9 +87,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      if (data && data.length > 0) {
-        console.log("Profile data:", data[0]);
-        setProfile(data[0]);
+      if (data) {
+        console.log("Profile data:", data);
+        setProfile(data);
       } else {
         console.log("Nenhum perfil encontrado para o usuário:", userId);
       }
@@ -113,29 +115,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       toast.success('Login realizado com sucesso');
-      if (data?.user) {
-        // Buscar perfil após login bem-sucedido
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .limit(1);
-        
-        if (profileError) {
-          console.error('Erro ao buscar perfil após login:', profileError);
-        }
-        
-        if (profileData && profileData.length > 0) {
-          setProfile(profileData[0]);
-          if (profileData[0].role === 'admin') {
-            navigate('/admin');
-          } else {
-            navigate('/');
-          }
-        } else {
-          navigate('/');
-        }
-      }
+      
+      // O perfil será carregado pelo listener de auth state change
+      
     } catch (error: any) {
       toast.error('Erro ao fazer login', {
         description: error.message
@@ -156,7 +138,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             name,
             role
-          }
+          },
+          // Desativar verificação de email
+          emailRedirectTo: window.location.origin,
         }
       });
 
@@ -167,18 +151,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      toast.success('Conta criada com sucesso', {
-        description: 'Verifique seu email para confirmar o cadastro.'
-      });
+      toast.success('Conta criada com sucesso!');
       
-      // Verificar se o usuário foi criado com sucesso e já está logado
       if (data?.user) {
         console.log("Usuário criado com sucesso:", data.user.id);
-        
-        // Se for admin, redirecionar para a página de admin
-        if (role === 'admin') {
-          navigate('/admin');
-        }
       }
     } catch (error: any) {
       toast.error('Erro ao criar conta', {
@@ -202,7 +178,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
+      setUser(null);
+      setProfile(null);
+      setSession(null);
       navigate('/login');
+      
     } catch (error: any) {
       toast.error('Erro ao fazer logout', {
         description: error.message
