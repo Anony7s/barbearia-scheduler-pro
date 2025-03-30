@@ -15,8 +15,8 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 // Componente para rotas protegidas
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) => {
+  const { user, profile, loading, isAdmin } = useAuth();
   
   // Se estiver carregando, não faz nada ainda
   if (loading) {
@@ -26,6 +26,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   // Se não estiver autenticado, redireciona para o login
   if (!user) {
     return <Navigate to="/login" />;
+  }
+  
+  // Se requer admin e o usuário não é admin, redirecionar para a página inicial
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/" />;
   }
   
   return <>{children}</>;
@@ -42,7 +47,7 @@ const AppWithAuth = () => {
         <Route 
           path="/admin" 
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireAdmin={true}>
               <Admin />
             </ProtectedRoute>
           } 

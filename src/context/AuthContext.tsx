@@ -32,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Configura o ouvinte de estado de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
+        console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
@@ -48,14 +49,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Verifica a sessão atual
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      console.log("Initial session check:", currentSession?.user?.id);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
         fetchUserProfile(currentSession.user.id);
+      } else {
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
     return () => {
@@ -66,6 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Função para buscar o perfil do usuário
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log("Fetching profile for user:", userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -74,12 +77,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Erro ao buscar perfil:', error);
+        setLoading(false);
         return;
       }
 
+      console.log("Profile data:", data);
       setProfile(data);
+      setLoading(false);
     } catch (error) {
       console.error('Erro ao buscar perfil:', error);
+      setLoading(false);
     }
   };
 
@@ -87,17 +94,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
         toast.error('Erro ao fazer login', {
           description: error.message
         });
+        setLoading(false);
         return;
       }
 
       toast.success('Login realizado com sucesso');
-      // Redirecionamento será feito após verificar o perfil do usuário
+      if (data?.user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (profileData) {
+          setProfile(profileData);
+          if (profileData.role === 'admin') {
+            navigate('/admin');
+          } else {
+            navigate('/');
+          }
+        } else {
+          navigate('/');
+        }
+      }
     } catch (error: any) {
       toast.error('Erro ao fazer login', {
         description: error.message

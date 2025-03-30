@@ -9,6 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agendamentos: {
+        Row: {
+          cliente_email: string
+          cliente_nome: string
+          cliente_telefone: string
+          created_at: string | null
+          data: string
+          horario: string
+          id: string
+          servico: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cliente_email: string
+          cliente_nome: string
+          cliente_telefone: string
+          created_at?: string | null
+          data: string
+          horario: string
+          id?: string
+          servico: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cliente_email?: string
+          cliente_nome?: string
+          cliente_telefone?: string
+          created_at?: string | null
+          data?: string
+          horario?: string
+          id?: string
+          servico?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           active: boolean | null

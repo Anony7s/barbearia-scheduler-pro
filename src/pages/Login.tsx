@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Scissors, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,8 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
-  const { signIn, signUp, loading, user } = useAuth();
+  const { signIn, signUp, loading, user, profile } = useAuth();
+  const navigate = useNavigate();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,10 +26,21 @@ const Login = () => {
   const [registerName, setRegisterName] = useState('');
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
   
-  // Se o usuário já estiver logado, redireciona para a área administrativa
-  if (user) {
-    return <Navigate to="/admin" />;
-  }
+  // Efeito para verificar login e redirecionar
+  useEffect(() => {
+    console.log("Login page - user:", user?.id);
+    console.log("Login page - profile:", profile);
+    
+    if (user) {
+      if (profile?.role === 'admin') {
+        console.log("Redirecting to /admin");
+        navigate('/admin');
+      } else if (profile) {
+        console.log("Redirecting to /");
+        navigate('/');
+      }
+    }
+  }, [user, profile, navigate]);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
